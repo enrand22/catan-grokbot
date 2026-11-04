@@ -22,7 +22,8 @@ JSON file; never edit it by hand, always go through the CLI so the rules are enf
 - Whose turn: the ▶ line. If it is an `ia` seat, run `python3 -m catan.cli ia` — it plays every
   consecutive AI turn and stops when a human/bot must act. Paste the events to the chat.
 - Human turn: `tirar <jugador>`, then their choices with `construir <jugador> camino|aldea|ciudad <id>`,
-  `comerciar <jugador> <doy> <recibo>` (bank 4:1), and `terminar <jugador>`.
+  `comerciar <jugador> <doy> <recibo>` (bank 4:1), `comodin <jugador> <doy> <recibo>` (house 2:1),
+  and `terminar <jugador>`.
   Initial placement: `colocar <jugador> <vertice> <camino>`.
 - On a 7: players with >7 cards `descartar <jugador> '{"madera":2,...}'`; then the roller does
   `ladron <jugador> <HEX> [victima]`. Then run `ia` again if an AI was mid-turn.
@@ -39,7 +40,14 @@ JSON file; never edit it by hand, always go through the CLI so the rules are enf
   engine's RNG — never pass fixed dice (`dice=`) or edit the state.
 - `ia` seats are played only by `catan/ai.py`, which uses public info and its own hand.
 
+## House rule: comodín 2:1 (on by default)
+On their own turn, after rolling, any player may trade 2 of one resource for 1 of any other with the
+bank, any number of times, no harbor needed. Why: there is NO player-to-player trading, so a human
+can't pressure the bot or an AI seat into a trade it doesn't want, and trade is still always
+available. You (the bot) never trade player-to-player, never accept or broker a trade between
+players, and never move cards between hands; if someone proposes one, point them to `comodin`.
+Disable only if the players ask: `nueva ... --sin-comodin` (bank 4:1 remains either way).
+
 ## Saving
 The JSON file is the save. To resume later, just run `tablero` with the same `--file`.
-Not included: development cards, harbors, and player-to-player trades (agree trades in chat and
-announce them; the engine does not move cards between players).
+Not included: development cards and harbors. Player-to-player trades are left out on purpose (see above).

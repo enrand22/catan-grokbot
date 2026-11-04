@@ -63,9 +63,12 @@ def _trade(g, name, say):
     goal = "ciudad" if h["mineral"] >= 2 and g.count("aldea", g.idx(name)) else "aldea"
     need = [r for r, c in COST[goal].items() if h[r] < c]
     if not need: need = [r for r, c in COST["camino"].items() if h[r] < c]
-    spare = [r for r in RES if h[r] - COST[goal].get(r, 0) >= 4]
+    rate = g.best_rate()
+    # solo cambia sobrantes: nunca entrega cartas que necesita para su objetivo
+    spare = sorted((r for r in RES if r not in need and h[r] - COST[goal].get(r, 0) >= rate),
+                   key=lambda r: -(h[r] - COST[goal].get(r, 0)))
     if need and spare:
-        say(g.trade_bank(name, spare[0], need[0])); return True
+        say(g.trade_bank(name, spare[0], need[0], rate)); return True
     return False
 
 

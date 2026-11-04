@@ -18,6 +18,7 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
     n = sub.add_parser("nueva", help="nueva partida: Nombre:tipo (humano|bot|ia)")
     n.add_argument("asientos", nargs="+"); n.add_argument("--seed", type=int); n.add_argument("--meta", type=int, default=10)
+    n.add_argument("--sin-comodin", action="store_true", help="desactiva el comercio comodín 2:1 de la casa")
     sub.add_parser("tablero", help="vista pública")
     h = sub.add_parser("mano", help="mano privada de un jugador"); h.add_argument("jugador")
     o = sub.add_parser("opciones", help="jugadas legales"); o.add_argument("jugador")
@@ -27,6 +28,7 @@ def main(argv=None):
     t = sub.add_parser("tirar"); t.add_argument("jugador")
     b = sub.add_parser("construir"); b.add_argument("jugador"); b.add_argument("tipo", choices=["camino", "aldea", "ciudad"]); b.add_argument("donde", type=int)
     cm = sub.add_parser("comerciar"); cm.add_argument("jugador"); cm.add_argument("doy"); cm.add_argument("recibo")
+    cz = sub.add_parser("comodin", help="regla de la casa: 2 de un recurso por 1 de otro con el banco"); cz.add_argument("jugador"); cz.add_argument("doy"); cz.add_argument("recibo")
     d = sub.add_parser("descartar"); d.add_argument("jugador"); d.add_argument("cartas", help='JSON, ej. {"madera":2}')
     l = sub.add_parser("ladron"); l.add_argument("jugador"); l.add_argument("hex"); l.add_argument("victima", nargs="?")
     f = sub.add_parser("terminar"); f.add_argument("jugador")
@@ -35,7 +37,7 @@ def main(argv=None):
 
     try:
         if args.cmd == "nueva":
-            g = Game.new(parse_seats(args.asientos), seed=args.seed, target=args.meta)
+            g = Game.new(parse_seats(args.asientos), seed=args.seed, target=args.meta, house_2to1=not args.sin_comodin)
             g.save(args.file); print(g.public_view()); return 0
         g = Game.load(args.file)
         cmd = args.cmd
@@ -50,6 +52,7 @@ def main(argv=None):
         elif cmd == "tirar": print(g.roll(args.jugador))
         elif cmd == "construir": print(g.build(args.jugador, args.tipo, args.donde))
         elif cmd == "comerciar": print(g.trade_bank(args.jugador, args.doy, args.recibo))
+        elif cmd == "comodin": print(g.trade_bank(args.jugador, args.doy, args.recibo, rate=2))
         elif cmd == "descartar": print(g.discard(args.jugador, json.loads(args.cartas)))
         elif cmd == "ladron": print(g.move_robber(args.jugador, args.hex, args.victima))
         elif cmd == "terminar": print(g.end_turn(args.jugador))

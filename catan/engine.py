@@ -88,7 +88,7 @@ class Game:
 
     # ---------- creación / persistencia ----------
     @classmethod
-    def new(cls, seats, seed=None, target=10):
+    def new(cls, seats, seed=None, target=10, house_2to1=True):
         """seats: lista de (nombre, tipo) con tipo en humano|bot|ia. 2 a 4 asientos."""
         if not 2 <= len(seats) <= 4:
             raise RuleError("se necesitan de 2 a 4 jugadores")
@@ -105,7 +105,7 @@ class Game:
         players = [{"nombre": seats[i][0], "tipo": seats[i][1], "mano": {r: 0 for r in RES}} for i in order]
         n = len(players)
         st = {
-            "version": 1, "meta": target, "hexes": hexes, "ladron": desert,
+            "version": 1, "meta": target, "comodin_2a1": bool(house_2to1), "hexes": hexes, "ladron": desert,
             "jugadores": players, "aldeas": {}, "ciudades": {}, "caminos": {},
             "fase": "colocacion", "colocacion": list(range(n)) + list(range(n - 1, -1, -1)),
             "paso_colocacion": 0, "esperando": "aldea", "ultima_aldea": None,
@@ -297,11 +297,21 @@ class Game:
         self._check_win(i)
         return msg
 
-    def trade_bank(self, name, give, get):
+    def house_2to1(self):
+        return self.s.get("comodin_2a1", True)
+
+    def best_rate(self):
+        return 2 if self.house_2to1() else 4
+
+    def trade_bank(self, name, give, get, rate=4):
+        """Comercio con el banco, solo en tu turno y después de tirar. rate 4 (siempre) o 2 (comodín de la casa)."""
         i = self.idx(name); self._ready(i)
+        if rate not in (2, 4): raise RuleError("tasa inválida")
+        if rate == 2 and not self.house_2to1(): raise RuleError("el comodín 2:1 está desactivado en esta partida")
         if give not in RES or get not in RES or give == get: raise RuleError("recursos inválidos")
-        self._pay(i, {give: 4}); self.players[i]["mano"][get] += 1
-        return self.log(f"{self.players[i]['nombre']} cambia 4 {give} por 1 {get} con el banco")
+        self._pay(i, {give: rate}); self.players[i]["mano"][get] += 1
+        tag = " (comodín 2:1 de la casa)" if rate == 2 else ""
+        return self.log(f"{self.players[i]['nombre']} cambia {rate} {give} por 1 {get} con el banco{tag}")
 
     def end_turn(self, name):
         i = self.idx(name); self._ready(i)
@@ -370,6 +380,7 @@ class Game:
         if s["fase"] == "colocacion":
             out.append(f"Fase: colocación inicial — {self.players[self.current()]['nombre']} pone aldea + camino")
         elif s["fase"] == "juego":
+            out.append("Comercio: banco 4:1" + (" + comodín 2:1 (regla de la casa)" if self.house_2to1() else "") + "; sin trueque entre jugadores")
             out.append(f"Ronda {s['ronda']} — turno de {self.players[s['turno']]['nombre']}; "
                        + (f"dados {s['dados']}" if s["tirado"] else "aún no tira"))
             if s["pendiente"]:
@@ -402,4 +413,5 @@ class Game:
             m["aldeas"] = [v for v in VHEX if self.can_settle(v, i, True)] if afford("aldea") else []
             m["ciudades"] = [int(v) for v, o in s["aldeas"].items() if o == i] if afford("ciudad") else []
             m["comercio"] = [r for r in RES if h[r] >= 4]
+            m["comodin"] = [r for r in RES if h[r] >= 2] if self.house_2to1() else []
         return m

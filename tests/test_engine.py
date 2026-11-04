@@ -64,11 +64,54 @@ class RuleTests(unittest.TestCase):
         self.assertNotIn("mineral", self.g.public_view())
 
 
+def _to_play(g):
+    while g.s["fase"] == "colocacion":
+        n = g.players[g.current()]["nombre"]; g.place(n, *ai.setup_move(g, n))
+    p = g.players[0]; g.roll(p["nombre"], dice=(1, 1)); p["mano"] = {r: 0 for r in p["mano"]}
+    return p
+
+
+class HouseRuleTests(unittest.TestCase):
+    def test_2to1_default_on(self):
+        g = Game.new([("A", "humano"), ("B", "ia")], seed=2); p = _to_play(g)
+        self.assertTrue(g.house_2to1())
+        p["mano"]["trigo"] = 2; g.trade_bank(p["nombre"], "trigo", "madera", rate=2)
+        self.assertEqual((p["mano"]["trigo"], p["mano"]["madera"]), (0, 1))
+        with self.assertRaises(RuleError): g.trade_bank(p["nombre"], "madera", "trigo", rate=2)  # solo 1 carta
+        with self.assertRaises(RuleError): g.trade_bank(p["nombre"], "oveja", "oveja", rate=2)
+
+    def test_2to1_off(self):
+        g = Game.new([("A", "humano"), ("B", "ia")], seed=2, house_2to1=False); p = _to_play(g)
+        p["mano"]["trigo"] = 4
+        with self.assertRaises(RuleError): g.trade_bank(p["nombre"], "trigo", "madera", rate=2)
+        g.trade_bank(p["nombre"], "trigo", "madera")  # 4:1 sigue disponible
+        self.assertEqual(g.legal_moves(p["nombre"])["comodin"], [])
+
+    def test_2to1_only_own_turn_after_roll(self):
+        g = Game.new([("A", "humano"), ("B", "humano")], seed=2); _to_play(g)
+        other = g.players[1]; other["mano"]["trigo"] = 2
+        with self.assertRaises(RuleError): g.trade_bank(other["nombre"], "trigo", "madera", rate=2)
+
+    def test_ai_keeps_needed_cards(self):
+        g = Game.new([("A", "ia"), ("B", "ia")], seed=2); p = _to_play(g)
+        p["mano"].update(madera=1, ladrillo=1, oveja=1, trigo=0, mineral=3)
+        ai._trade(g, p["nombre"], lambda m: None)
+        self.assertEqual((p["mano"]["madera"], p["mano"]["ladrillo"], p["mano"]["oveja"]), (1, 1, 1))
+
+    def test_cli_flag(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, "p.json")
+            cli.main(["--file", f, "nueva", "A:ia", "B:ia", "--sin-comodin"])
+            self.assertFalse(Game.load(f).house_2to1())
+
+
 class GameTests(unittest.TestCase):
     def test_full_games_end(self):
         for n in (2, 3, 4):
             for seed in range(5):
                 g, _ = simulate.run(seed, n)
+                self.assertIsNotNone(g.s["ganador"])
+                g, _ = simulate.run(seed, n, house_2to1=False)
                 self.assertIsNotNone(g.s["ganador"])
                 self.assertGreaterEqual(g.points(g.s["ganador"]), 10)
 

@@ -4,8 +4,8 @@ from catan.engine import Game
 from catan import ai
 
 
-def run(seed, n=4, max_turns=2000, quiet=True):
-    g = Game.new([(f"IA{k+1}", "ia") for k in range(n)], seed=seed)
+def run(seed, n=4, max_turns=2000, quiet=True, house_2to1=True):
+    g = Game.new([(f"IA{k+1}", "ia") for k in range(n)], seed=seed, house_2to1=house_2to1)
     turns = 0
     while g.s["ganador"] is None and turns < max_turns:
         ai.play_turn(g, g.players[g.current()]["nombre"], log=(lambda m: None) if quiet else print)

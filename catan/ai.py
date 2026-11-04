@@ -37,7 +37,7 @@ def play_turn(g, name, log=print):
     if not g.s["tirado"]:
         say(g.roll(name))
     if resolve_pending(g, say, ai_only=True):
-        say("⏸️ Esperando a que los humanos resuelvan descartes/ladrón; luego vuelve a ejecutar `ai`.")
+        say(g.t("ai_wait"))
         return ev
     for _ in range(20):
         if g.s["ganador"] is not None: return ev
